@@ -1,4 +1,7 @@
+'use client';
+
 import { StatusBadge } from './StatusBadge';
+import { useState, useEffect } from 'react';
 
 interface ServiceCardProps {
   service: {
@@ -31,6 +34,8 @@ interface ServiceCardProps {
 
 export function ServiceCard({ service, onEdit, onDelete }: ServiceCardProps) {
   const latestCheck = service.latestCheck;
+  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
+  const [loadingAi, setLoadingAi] = useState(false);
   const versionMismatch =
     service.expectedVersion &&
     latestCheck?.detectedVersion &&
@@ -45,6 +50,33 @@ export function ServiceCard({ service, onEdit, onDelete }: ServiceCardProps) {
   };
 
   const statusColor = getStatusColor();
+
+  // Fetch AI explanation when error changes
+  useEffect(() => {
+    if (latestCheck?.errorMessage) {
+      setLoadingAi(true);
+      fetch('/api/explain-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          errorMessage: latestCheck.errorMessage,
+          url: service.url,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          setAiExplanation(data.explanation);
+        })
+        .catch(() => {
+          setAiExplanation(null);
+        })
+        .finally(() => {
+          setLoadingAi(false);
+        });
+    } else {
+      setAiExplanation(null);
+    }
+  }, [latestCheck?.errorMessage, service.url]);
 
   return (
     <div className="relative group h-full flex flex-col">
@@ -227,11 +259,25 @@ export function ServiceCard({ service, onEdit, onDelete }: ServiceCardProps) {
 
         {/* Error message */}
         {latestCheck?.errorMessage && (
-          <div className="mb-3 border border-rose-500/30 bg-rose-500/5 px-3 py-2">
+          <div className="mb-3 border border-rose-500/30 bg-rose-500/5 px-3 py-2 space-y-2">
             <div className="flex items-start gap-2">
               <span className="text-rose-500 text-xs font-mono flex-shrink-0">[!]</span>
               <p className="text-xs text-rose-300 font-mono flex-1 line-clamp-2" title={latestCheck.errorMessage}>{latestCheck.errorMessage}</p>
             </div>
+            {loadingAi && (
+              <div className="flex items-center gap-2 pt-2 border-t border-rose-500/20">
+                <div className="h-2 w-2 rounded-full bg-rose-400 animate-pulse"></div>
+                <span className="text-[10px] text-rose-400 font-mono">AI thinking...</span>
+              </div>
+            )}
+            {aiExplanation && (
+              <div className="pt-2 border-t border-rose-500/20">
+                <div className="flex items-start gap-2">
+                  <span className="text-rose-400 text-[10px] font-mono flex-shrink-0 uppercase tracking-wider">AI:</span>
+                  <p className="text-xs text-rose-200 italic">{aiExplanation}</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

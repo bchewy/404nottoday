@@ -10,7 +10,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^2.0.71",
     "@prisma/client": "^5.22.0",
+    "ai": "^5.0.100",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "face-api.js": "^0.22.2",
@@ -26,8 +28,8 @@
   },
   "optionalDependencies": {
     "@tailwindcss/oxide-linux-x64-gnu": "4.1.17",
-    "lightningcss-linux-x64-gnu": "1.30.2",
-    "lightningcss-linux-arm64-gnu": "1.30.2"
+    "lightningcss-linux-arm64-gnu": "1.30.2",
+    "lightningcss-linux-x64-gnu": "1.30.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
