@@ -1,72 +1,83 @@
-# Stage 1: Dependencies
-FROM node:20-alpine AS deps
+FROM node:20-slim AS deps
 WORKDIR /app
 
-# Copy package files
-COPY package.json bun.lock* package-lock.json* yarn.lock* pnpm-lock.yaml* ./
+# Install OpenSSL for Prisma
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
-RUN \
-  if [ -f bun.lock ]; then corepack enable && bun install --frozen-lockfile; \
-  elif [ -f yarn.lock ]; then corepack enable && yarn install --frozen-lockfile; \
-  elif [ -f package-lock.json ]; then npm ci; \
-  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm install --frozen-lockfile; \
-  else echo "Lockfile not found." && exit 1; \
-  fi
+# Copy package files and Prisma schema (needed for postinstall prisma generate)
+COPY package*.json ./
+COPY prisma ./prisma
 
-# Stage 2: Builder
-FROM node:20-alpine AS builder
+# Install dependencies (includes optional native bindings) and run postinstall (prisma generate)
+RUN npm ci --include=optional && \
+    node -e "\
+      const cp = require('child_process'); \
+      const arch = process.arch === 'x64' ? 'x64' : process.arch === 'arm64' ? 'arm64' : null; \
+      const libc = process.report?.getReport().header.glibcVersionRuntime ? 'gnu' : 'musl'; \
+      if (arch) { \
+        const pkgs = [ \
+          '@tailwindcss/oxide-linux-' + arch + '-' + libc + '@4.1.17', \
+          'lightningcss-linux-' + arch + '-' + libc + '@1.30.2' \
+        ]; \
+        console.log('Installing native bindings:', pkgs.join(' ')); \
+        cp.execSync('npm install --no-save ' + pkgs.join(' '), { stdio: 'inherit' }); \
+      } else { \
+        console.log('Skipping native oxide/lightningcss install for arch', process.arch); \
+      }"
+
+FROM node:20-slim AS builder
 WORKDIR /app
 
-# Copy dependencies from deps stage
+# Install OpenSSL for Prisma client
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
+# Build arguments for versioning
+ARG BUILD_VERSION="dev"
+ARG BUILD_COMMIT="unknown"
+
+# Prisma generate requires a connection string even if the DB is unreachable
+ARG DATABASE_URL="postgresql://monitoring:monitoring123@localhost:5432/servicehealth"
+ENV DATABASE_URL=${DATABASE_URL}
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Copy pre-installed node_modules and source
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma Client
-RUN npx prisma generate
-
-# Build Next.js app
-ENV NEXT_TELEMETRY_DISABLED=1
+# Build the Next.js standalone output (runs prisma generate first)
 RUN npm run build
 
-# Stage 3: Runner
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 WORKDIR /app
+
+# Install OpenSSL for Prisma
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Create non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN groupadd -g 1001 nodejs \
+  && useradd -u 1001 -g nodejs nextjs
 
-# Copy necessary files
-COPY --from=builder /app/public ./public
+# Copy production artifacts
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/services.json ./services.json
-COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+COPY --from=builder /app/package*.json ./
 
-# Create database directory with proper permissions
-RUN mkdir -p /app/prisma && chown -R nextjs:nodejs /app
+# Remove devDependencies to slim the image while keeping generated Prisma client
+RUN npm prune --omit=dev
 
 USER nextjs
-
 EXPOSE 3000
 
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-# Create entrypoint script
-USER root
-RUN echo '#!/bin/sh\nset -e\necho "Running database migrations..."\nnpx prisma migrate deploy\necho "Starting application..."\nexec node server.js' > /app/entrypoint.sh && \
-    chmod +x /app/entrypoint.sh && \
-    chown nextjs:nodejs /app/entrypoint.sh
-
-USER nextjs
-
-CMD ["/app/entrypoint.sh"]
-
+# Run migrations on start, then boot the Next.js server
+CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]

@@ -29,7 +29,7 @@ export async function PATCH(
       where: { id },
       data: {
         ...(typeof enabled === 'boolean' ? { enabled } : {}),
-        ...(events ? { events } : {}),
+        ...(events ? { events: Array.isArray(events) ? events : [events] } : {}),
       },
     });
 

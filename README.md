@@ -1,9 +1,8 @@
-# Service Reliability Monitor
+# 404NotToday
 
 A lightweight Next.js application for monitoring service health, availability, and version tracking. Built for the ATS Take-Home Assignment.
 
 ## Features
-
 - ✅ **Periodic Health Checks**: Monitors services at configurable intervals (default: 60s)
 - ✅ **Persistent Storage**: SQLite database for storing check results and historical data
 - ✅ **Real-time Dashboard**: Clean, modern UI displaying service status, latency, and uptime
@@ -13,7 +12,6 @@ A lightweight Next.js application for monitoring service health, availability, a
 - ✅ **Dockerized**: Ready-to-deploy with Docker and docker-compose
 
 ## Tech Stack
-
 - **Framework**: Next.js 16 (App Router)
 - **Database**: SQLite with Prisma ORM (v5.22)
 - **Styling**: Tailwind CSS
@@ -268,7 +266,3 @@ AI tools (Claude via Cursor) were used extensively for:
 - **Architecture**: Validation of polling mechanism and data model design
 
 The core architecture, technology choices, and trade-off decisions were human-driven, with AI assisting in implementation details and accelerating development.
-
-## License
-
-MIT

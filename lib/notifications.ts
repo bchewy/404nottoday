@@ -47,19 +47,23 @@ export async function sendWebhookNotifications(
 
   try {
     // Fetch enabled webhooks that are subscribed to these events
+    // Note: events is a comma-separated string in DB
     const webhooks = await prisma.webhook.findMany({
       where: {
-        enabled: true,
-        events: {
-          hasSome: relevantEvents
-        }
+        enabled: true
       }
     });
 
-    if (webhooks.length === 0) return;
+    // Filter manually in application code
+    const activeWebhooks = webhooks.filter(webhook => {
+      const webhookEvents = (webhook.events || []).map(e => e.trim());
+      return relevantEvents.some(ev => ev && webhookEvents.includes(ev));
+    });
+
+    if (activeWebhooks.length === 0) return;
 
     const payload: WebhookPayload = {
-      event,
+      event: event || 'UNKNOWN_EVENT',
       service: {
         id: service.id,
         name: service.name,
@@ -72,11 +76,11 @@ export async function sendWebhookNotifications(
       timestamp: new Date().toISOString(),
     };
 
-    console.log(`[Notifications] Sending ${webhooks.length} notifications for ${service.name} (Event: ${event})`);
+    console.log(`[Notifications] Sending ${activeWebhooks.length} notifications for ${service.name} (Event: ${event})`);
 
     // Send notifications in parallel
     await Promise.all(
-      webhooks.map(async (webhook) => {
+      activeWebhooks.map(async (webhook) => {
         try {
           if (webhook.type === 'TELEGRAM' && webhook.config) {
             const config = webhook.config as unknown as TelegramConfig;

@@ -33,9 +33,9 @@ export async function POST(request: Request) {
       data: {
         name,
         url, // Can be null/undefined for Telegram
-        events,
+        events: Array.isArray(events) ? events : [events],
         type,
-        config: config ? config : undefined,
+        config: config || undefined,
       },
     });
 

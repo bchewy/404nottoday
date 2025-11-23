@@ -1,0 +1,33 @@
+version: "3.9"
+
+# Development overrides for docker-compose.yml
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  app:
+    build:
+      target: builder  # Use builder stage for faster iteration
+    environment:
+      NODE_ENV: development
+      ENABLE_POLLING: "true"
+    volumes:
+      # Mount source code for hot reloading
+      - ./app:/app/app
+      - ./lib:/app/lib
+      - ./components:/app/components
+      - ./public:/app/public
+      - ./prisma:/app/prisma
+      - ./services.json:/app/services.json
+      # Preserve node_modules in container
+      - /app/node_modules
+      - /app/.next
+    command: ["npm", "run", "dev"]
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+
+  db:
+    ports:
+      - "5433:5432"  # Different port to avoid conflicts with local Postgres
