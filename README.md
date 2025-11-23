@@ -18,10 +18,10 @@ A lightweight Next.js application for monitoring service health, availability, a
 - **Runtime**: Node.js 20
 - **Deployment**: Docker
 
-> **Note on Prisma Version**: This project uses Prisma 5 instead of Prisma 7. While Prisma 7 was initially attempted, its libSQL adapter has compatibility issues with Next.js 16's build system due to dynamic native module loading. Prisma 5 provides stable, production-ready SQLite support without adapters.
+# Infrastructure Note:
+I'd ideally deploy this on Vercel since it's easy for me to do so (40seconds from the cli command to deployment on https://404.chew.sh); but due to the fact that the instrumentation cron job is limited on free-tier, i'd much rather self-deploy this on a ec2/box with docker-compose, alternatively we can also deploy this via lambdas and then crud the database. 
 
 ## Quick Start
-
 ### Using Docker Compose (Recommended)
 
 ```bash
@@ -31,64 +31,6 @@ docker-compose up --build
 # Access the dashboard
 open http://localhost:3000
 ```
-
-### Local Development
-
-```bash
-# Install dependencies
-npm install
-
-# Generate Prisma client and run migrations
-npx prisma generate
-npx prisma migrate dev --name init
-
-# Start development server
-npm run dev
-
-# Access the dashboard
-open http://localhost:3000
-```
-
-## Configuration
-
-### Adding Services
-
-Edit `services.json` in the project root:
-
-```json
-[
-  {
-    "name": "My API",
-    "url": "https://api.example.com/health",
-    "expectedVersion": "1.2.3",
-    "environment": "production"
-  },
-  {
-    "name": "Staging Service",
-    "url": "https://staging.example.com/status",
-    "expectedVersion": null,
-    "environment": "staging"
-  }
-]
-```
-
-**Fields:**
-- `name` (string, required): Display name for the service
-- `url` (string, required): Health check endpoint URL
-- `expectedVersion` (string|null): Expected version string (null if not applicable)
-- `environment` (string, optional): Environment tag (e.g., "production", "staging")
-
-### Environment Variables
-
-Create a `.env` file or set environment variables:
-
-```env
-DATABASE_URL=file:./prisma/dev.db
-POLL_INTERVAL_MS=60000
-```
-
-- `DATABASE_URL`: SQLite database file location
-- `POLL_INTERVAL_MS`: Polling interval in milliseconds (default: 60000 = 1 minute)
 
 ## API Endpoints
 
@@ -266,3 +208,13 @@ AI tools (Claude via Cursor) were used extensively for:
 - **Architecture**: Validation of polling mechanism and data model design
 
 The core architecture, technology choices, and trade-off decisions were human-driven, with AI assisting in implementation details and accelerating development.
+
+# GIFS of the app in action
+
+## Default Webhook Integration
+- Edit a service to be faulty and see webhook response.
+![Default Webhook Integration](./webhook.gif)
+
+## Telegram Webhook Integration
+- Edit a service to be faulty and see telegram message.
+![Telegram Webhook Integration](./tele.gif)
