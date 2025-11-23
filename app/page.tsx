@@ -5,7 +5,8 @@ import { ServiceCard } from './components/ServiceCard';
 import { ServiceModal } from './components/ServiceModal';
 import { HowItWorks } from './components/HowItWorks';
 import { WebhookModal } from './components/WebhookModal';
-import { Bell } from 'lucide-react';
+import { DependencyGraph } from './components/DependencyGraph';
+import { Bell, Network } from 'lucide-react';
 
 interface Service {
   id: string;
@@ -45,6 +46,8 @@ export default function Home() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isWebhookModalOpen, setIsWebhookModalOpen] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
+  const [showDependencyGraph, setShowDependencyGraph] = useState(false);
+  const [dependencies, setDependencies] = useState<Map<string, string[]>>(new Map());
 
   const fetchStatus = async () => {
     try {
@@ -114,6 +117,26 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const buildDependencyMap = async () => {
+      try {
+        const response = await fetch('/api/dependencies');
+        if (response.ok) {
+          const deps = await response.json();
+          const map = new Map<string, string[]>();
+          Object.entries(deps || {}).forEach(([key, value]) => {
+            map.set(key, value as string[]);
+          });
+          setDependencies(map);
+        }
+      } catch (err) {
+        console.error('Failed to fetch dependencies:', err);
+      }
+    };
+
+    buildDependencyMap();
+  }, [data]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-transparent flex items-center justify-center">
@@ -173,6 +196,16 @@ export default function Home() {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowDependencyGraph(!showDependencyGraph)}
+                className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors ${
+                  showDependencyGraph ? 'bg-violet-600 hover:bg-violet-500' : 'bg-zinc-800 hover:bg-zinc-700'
+                }`}
+                title="Toggle Dependency Graph"
+              >
+                <Network className="w-4 h-4" />
+                <span className="hidden sm:inline">Graph</span>
+              </button>
               <button
                 onClick={() => setIsWebhookModalOpen(true)}
                 className="inline-flex items-center gap-2 rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-zinc-700 transition-colors"
@@ -254,6 +287,17 @@ export default function Home() {
             </div>
           </div>
         </div>
+
+        {/* Dependency Graph */}
+        {showDependencyGraph && services.length > 0 && (
+          <div className="mb-8 rounded-lg bg-zinc-900/80 backdrop-blur-sm border border-zinc-800 p-6 overflow-hidden">
+            <h2 className="text-xl font-semibold text-zinc-100 mb-4 flex items-center gap-2">
+              <Network className="w-5 h-5 text-violet-400" />
+              Service Dependencies
+            </h2>
+            <DependencyGraph services={services} dependencies={dependencies} />
+          </div>
+        )}
 
         {/* Services Grid */}
         {services.length === 0 ? (
