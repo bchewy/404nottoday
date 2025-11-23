@@ -111,7 +111,10 @@ export async function pollAllServices(): Promise<void> {
       checkResults: {
         orderBy: { timestamp: 'desc' },
         take: 1,
-        select: { status: true },
+        select: { 
+          status: true,
+          detectedVersion: true 
+        },
       },
     },
   });
@@ -132,7 +135,9 @@ export async function pollAllServices(): Promise<void> {
       const service = services.find((s) => s.id === result.serviceId);
       if (!service) return;
 
-      const previousStatus = service.checkResults[0]?.status || 'UNKNOWN';
+      const previousCheck = service.checkResults[0];
+      const previousStatus = previousCheck?.status || 'UNKNOWN';
+      const previousVersion = previousCheck?.detectedVersion;
 
       // Save result
       await prisma.checkResult.create({
@@ -145,7 +150,7 @@ export async function pollAllServices(): Promise<void> {
         },
       });
 
-      // Check for status change and send webhooks
+      // Check for status change
       if (previousStatus !== 'UNKNOWN' && result.status !== previousStatus) {
         await sendWebhookNotifications(
           {
@@ -154,7 +159,29 @@ export async function pollAllServices(): Promise<void> {
             url: service.url,
           },
           previousStatus,
-          result.status
+          result.status,
+          previousVersion,
+          result.detectedVersion
+        );
+      }
+      // Check for version change (only if status didn't change, otherwise handled above)
+      else if (
+        result.status === 'UP' && 
+        previousVersion && 
+        result.detectedVersion && 
+        result.detectedVersion !== previousVersion
+      ) {
+        await sendWebhookNotifications(
+          {
+            id: service.id,
+            name: service.name,
+            url: service.url,
+          },
+          previousStatus,
+          result.status,
+          previousVersion,
+          result.detectedVersion,
+          'VERSION_CHANGE'
         );
       }
     })

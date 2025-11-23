@@ -11,19 +11,39 @@ interface WebhookPayload {
   service: Service;
   previousStatus: string;
   currentStatus: string;
+  previousVersion?: string | null;
+  currentVersion?: string | null;
   timestamp: string;
+}
+
+interface TelegramConfig {
+  token: string;
+  chatId: string;
 }
 
 export async function sendWebhookNotifications(
   service: Service,
   previousStatus: string,
-  currentStatus: string
+  currentStatus: string,
+  previousVersion?: string | null,
+  currentVersion?: string | null,
+  eventType?: string
 ) {
-  // Determine event type
-  const event = currentStatus === 'UP' ? 'SERVICE_UP' : 'SERVICE_DOWN';
+  // Determine event type if not provided
+  let event = eventType;
+  if (!event) {
+    if (previousVersion !== currentVersion) {
+      event = 'VERSION_CHANGE';
+    } else {
+      event = currentStatus === 'UP' ? 'SERVICE_UP' : 'SERVICE_DOWN';
+    }
+  }
   
-  // Also support a generic STATUS_CHANGE event
-  const relevantEvents = [event, 'STATUS_CHANGE'];
+  // Also support a generic STATUS_CHANGE event for up/down
+  const relevantEvents = [event];
+  if (event === 'SERVICE_UP' || event === 'SERVICE_DOWN') {
+    relevantEvents.push('STATUS_CHANGE');
+  }
 
   try {
     // Fetch enabled webhooks that are subscribed to these events
@@ -47,29 +67,63 @@ export async function sendWebhookNotifications(
       },
       previousStatus,
       currentStatus,
+      previousVersion,
+      currentVersion,
       timestamp: new Date().toISOString(),
     };
 
-    console.log(`[Notifications] Sending ${webhooks.length} webhooks for ${service.name} (${previousStatus} -> ${currentStatus})`);
+    console.log(`[Notifications] Sending ${webhooks.length} notifications for ${service.name} (Event: ${event})`);
 
     // Send notifications in parallel
     await Promise.all(
       webhooks.map(async (webhook) => {
         try {
-          const response = await fetch(webhook.url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'User-Agent': '404NotToday-Webhook-Bot/1.0',
-            },
-            body: JSON.stringify(payload),
-          });
+          if (webhook.type === 'TELEGRAM' && webhook.config) {
+            const config = webhook.config as unknown as TelegramConfig;
+            let message = '';
+            
+            if (event === 'SERVICE_DOWN') {
+              message = `🚨 *Service Down*\n\n*Service:* ${service.name}\n*URL:* ${service.url}\n*Status:* DOWN 🔴`;
+            } else if (event === 'SERVICE_UP') {
+              message = `✅ *Service Recovered*\n\n*Service:* ${service.name}\n*URL:* ${service.url}\n*Status:* UP 🟢`;
+            } else if (event === 'VERSION_CHANGE') {
+              message = `ℹ️ *Version Change*\n\n*Service:* ${service.name}\n*From:* ${previousVersion || 'Unknown'}\n*To:* ${currentVersion || 'Unknown'}`;
+            } else {
+              message = `📢 *Status Change*\n\n*Service:* ${service.name}\n*Event:* ${event}\n*Status:* ${currentStatus}`;
+            }
 
-          if (!response.ok) {
-            console.warn(`[Notifications] Failed to send webhook to ${webhook.url}: ${response.status} ${response.statusText}`);
+            const tgUrl = `https://api.telegram.org/bot${config.token}/sendMessage`;
+            const tgRes = await fetch(tgUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: config.chatId,
+                text: message,
+                parse_mode: 'Markdown'
+              })
+            });
+
+            if (!tgRes.ok) {
+              const err = await tgRes.text();
+              console.warn(`[Notifications] Failed to send Telegram message: ${err}`);
+            }
+          } else if (webhook.url) {
+            // Standard Webhook
+            const response = await fetch(webhook.url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': '404NotToday-Webhook-Bot/1.0',
+              },
+              body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+              console.warn(`[Notifications] Failed to send webhook to ${webhook.url}: ${response.status} ${response.statusText}`);
+            }
           }
         } catch (error) {
-          console.error(`[Notifications] Error sending webhook to ${webhook.url}:`, error);
+          console.error(`[Notifications] Error processing notification for ${webhook.name}:`, error);
         }
       })
     );

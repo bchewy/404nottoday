@@ -40,7 +40,9 @@ model CheckResult {
 model Webhook {
   id        String   @id @default(cuid())
   name      String
-  url       String
+  url       String?
+  type      String   @default("WEBHOOK") // WEBHOOK, TELEGRAM
+  config    Json?    // Stores { token: "...", chatId: "..." } for Telegram
   events    String[]
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now())

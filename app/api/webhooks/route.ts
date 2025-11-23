@@ -15,17 +15,27 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, url, events } = body;
+    const { name, url, events, type = 'WEBHOOK', config } = body;
 
-    if (!name || !url || !events) {
+    if (!name || !events) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    if (type === 'WEBHOOK' && !url) {
+      return NextResponse.json({ error: 'URL is required for Webhook type' }, { status: 400 });
+    }
+
+    if (type === 'TELEGRAM' && (!config?.token || !config?.chatId)) {
+      return NextResponse.json({ error: 'Bot Token and Chat ID are required for Telegram type' }, { status: 400 });
     }
 
     const webhook = await prisma.webhook.create({
       data: {
         name,
-        url,
+        url, // Can be null/undefined for Telegram
         events,
+        type,
+        config: config ? config : undefined,
       },
     });
 
