@@ -1,0 +1,33 @@
+[
+  {
+    "name": "Google",
+    "url": "https://www.google.com",
+    "expectedVersion": "2.5.1",
+    "environment": "production"
+  },
+  {
+    "name": "GitHub Status API",
+    "url": "https://www.githubstatus.com/api/v2/status.json",
+    "expectedVersion": "1.0.0",
+    "environment": "production"
+  },
+  {
+    "name": "Cloudflare DNS",
+    "url": "https://1.1.1.1",
+    "expectedVersion": "3.2.0",
+    "environment": "production"
+  },
+  {
+    "name": "JSONPlaceholder API",
+    "url": "https://jsonplaceholder.typicode.com/posts/1",
+    "expectedVersion": "1.5.0",
+    "environment": "staging"
+  },
+  {
+    "name": "HTTPBin (Test)",
+    "url": "https://httpbin.org/status/200",
+    "expectedVersion": "2.0.0",
+    "environment": "staging"
+  }
+]
+
