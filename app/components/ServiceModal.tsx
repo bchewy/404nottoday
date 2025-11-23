@@ -246,3 +246,4 @@ export function ServiceModal({ isOpen, onClose, onSuccess, initialData }: Servic
 
 // Keep the old export for backward compatibility
 export { ServiceModal as AddServiceModal };
+
