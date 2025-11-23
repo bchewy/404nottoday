@@ -19,7 +19,9 @@ A lightweight Next.js application for monitoring service health, availability, a
 - **Deployment**: Docker
 
 # Infrastructure Note:
-I'd ideally deploy this on Vercel since it's easy for me to do so (40seconds from the cli command to deployment on https://404.chew.sh); but due to the fact that the instrumentation cron job is limited on free-tier, i'd much rather self-deploy this on a ec2/box with docker-compose, alternatively we can also deploy this via lambdas and then crud the database. 
+I'd ideally deploy this on Vercel since it's easy for me to do so (40seconds from the cli command to deployment on https://404.chew.sh); but due to the fact that the Vercel cron jobs are limited on free-tier, i'd much rather self-deploy this on a ec2/box with docker-compose, alternatively we can also deploy this via lambdas and then crud the database. 
+
+I'd also monitor this via other tools better known out there like betteruptime, statuspage, etc... as well as be on-call on pagerduty! (i have some fun experience with it!)
 
 ## Quick Start
 ### Using Docker Compose (Recommended)
