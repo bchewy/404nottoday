@@ -13,7 +13,7 @@ A lightweight Next.js application for monitoring service health, availability, a
 
 ## Tech Stack
 - **Framework**: Next.js 16 (App Router)
-- **Database**: SQLite with Prisma ORM (v5.22)
+- **Database**: PostgreSQL with Prisma ORM (v5.22)
 - **Styling**: Tailwind CSS
 - **Runtime**: Node.js 20
 - **Deployment**: Docker
