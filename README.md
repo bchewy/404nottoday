@@ -92,13 +92,11 @@ The application uses Next.js's experimental `instrumentation.ts` hook to run bac
 4. Results are stored in the `CheckResult` table
 
 ### Version Detection
-
 The poller attempts to detect versions through:
 - HTTP headers: `X-Version` or `x-version`
 - JSON response body: `{ "version": "..." }` field
 
 ### Database Schema
-
 **Service Table:**
 - Stores service configuration (name, URL, expected version, environment)
 - Synced from `services.json` on startup
@@ -109,7 +107,6 @@ The poller attempts to detect versions through:
 - Used to calculate uptime and average latency statistics
 
 ### UI Design
-
 Clean, modern aesthetic with:
 - System status banner showing overall health
 - Service cards with status badges (green/yellow/red)
@@ -120,7 +117,6 @@ Clean, modern aesthetic with:
 ## Trade-offs & Decisions
 
 ### Polling Inside Next.js vs Separate Worker
-
 **Chosen**: Internal polling via `instrumentation.ts`
 
 **Rationale**:
@@ -133,31 +129,20 @@ Clean, modern aesthetic with:
 
 ### SQLite vs PostgreSQL
 
-**Chosen**: SQLite
+**Chosen**: PostgreSQL
 
 **Rationale**:
-- Zero external dependencies
-- Perfect for this use case (low write volume, single writer)
-- Simplified Docker setup
-- Easy to backup/migrate
+- Production-ready with excellent scalability
+- Supports concurrent writes (critical for distributed polling)
+- Better tooling and monitoring ecosystem
+- Native support in major cloud providers (RDS, Cloud SQL, etc.)
+- ACID compliance with robust transaction support
 
-**Trade-off**: Not suitable for high-concurrency scenarios
-
-### Configuration: JSON vs Environment Variables
-
-**Chosen**: `services.json` file
-
-**Rationale**:
-- Easier to manage multiple services
-- Version-controllable
-- Hot-reloadable (restart required)
-
-**Trade-off**: Requires file access; env vars might be simpler for small deployments
+**Trade-off**: Requires external database service (additional infrastructure complexity)
 
 ## Production Deployment Recommendations
 
 ### Infrastructure
-
 **Recommended Setup**: AWS ECS Fargate or EC2 with Docker
 
 1. **Container Orchestration**: Deploy via ECS with persistent EFS volume for SQLite database
@@ -168,41 +153,34 @@ Clean, modern aesthetic with:
 **Alternative**: Single EC2 instance with docker-compose for simplicity
 
 ### Monitoring & Observability
-
 - **Application Logs**: Structured JSON logs to CloudWatch
 - **Health Checks**: ALB health checks hitting `/api/status`
 - **Metrics**: Custom CloudWatch metrics for service uptime/latency
 - **Alerting**: Trigger alerts when uptime drops below threshold
 
 ### Scaling Considerations
-
 - **Vertical**: Increase container CPU/memory for more frequent polling
 - **Horizontal**: Challenging with SQLite; migrate to PostgreSQL + Redis for distributed polling
 - **Database**: For >100 services or <10s poll intervals, consider PostgreSQL
 
 ### Security
-
 - Use VPC with private subnets for ECS tasks
 - Restrict security groups to necessary ports
 - Use IAM roles for AWS service access
 - Consider secrets management (AWS Secrets Manager) for sensitive URLs
 
 ### Backup & Recovery
-
-- **SQLite Database**: Periodic snapshots to S3 via cron or Lambda
-- **Disaster Recovery**: Store `services.json` and migrations in version control
+- **PostgreSQL Database**: Periodic snapshots to S3 via cron or Lambda
+- **Disaster Recovery**: Store migrations in version control
 - **RTO/RPO**: Acceptable data loss of 1-5 minutes (time between polls)
 
 ### Cost Optimization
-
 - Single ECS Fargate task (0.25 vCPU, 512 MB): ~$5-10/month
 - EFS volume: ~$1-2/month for small database
 - Total estimated cost: **< $15/month**
 
 ## AI Usage Disclosure
-
 AI tools (Claude via Cursor) were used extensively for:
-
 - **Boilerplate Generation**: Prisma schema, API routes, component structure
 - **Debugging**: Prisma 7 configuration issues, Docker multi-stage builds
 - **Best Practices**: Next.js 16 App Router patterns, Tailwind styling conventions
