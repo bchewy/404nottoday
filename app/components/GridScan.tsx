@@ -501,7 +501,9 @@ export const GridScan = ({
       bloomRef.current = bloom;
 
       const chroma = new ChromaticAberrationEffect({
-        offset: new THREE.Vector2(chromaticAberration, chromaticAberration)
+        offset: new THREE.Vector2(chromaticAberration, chromaticAberration),
+        radialModulation: false,
+        modulationOffset: 0
       });
       chromaRef.current = chroma;
 

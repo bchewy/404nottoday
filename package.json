@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build --webpack",
+    "postinstall": "prisma generate",
+    "build": "prisma generate && next build --webpack",
     "start": "next start",
     "lint": "eslint"
   },
@@ -24,6 +25,7 @@
     "tsx": "^4.20.6"
   },
   "optionalDependencies": {
+    "@tailwindcss/oxide-linux-x64-gnu": "4.1.17",
     "lightningcss-linux-x64-gnu": "1.30.2"
   },
   "devDependencies": {
